@@ -4,6 +4,9 @@ FROM openjdk:14-alpine
 # Set the working directory
 WORKDIR /app
 
+# Copy the build.sbt file to the working directory
+COPY build.sbt /app
+
 # Copy the JAR file to the working directory
 COPY target/scala-2.13/LogisticDeliverSimulator.jar /app
 
