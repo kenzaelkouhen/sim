@@ -23,7 +23,4 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-stream-kafka" % "4.0.0",
   "org.mongodb.scala" %% "mongo-scala-driver" % "4.8.1"
 )
-
-libraryDependencies += "io.kamon" %% "kamon-akka" % "1.1.7"
-
 assembly / assemblyJarName := "LogisticDeliverSimulator.jar"
