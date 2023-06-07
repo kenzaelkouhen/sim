@@ -1,0 +1,201 @@
+
+#docker compose for grafana and prometheus 
+
+version: '3.2'
+
+services:
+
+  grafana:
+    image: grafana/grafana:7.0.6
+    volumes: ["./grafana/plugins/cinnamon-prometheus-app:/var/lib/grafana/plugins/cinnamon-prometheus-app"]
+    ports:
+      - 3000:3000
+    networks: ["sandbox"]
+    depends_on:
+     - prometheus
+     - cadvisor 
+     #- mongo_exporter
+
+ # Prometheus and exporters
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+    - 9090:9090
+    command:
+    - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks: ["sandbox"]
+
+    depends_on:
+      - cadvisor
+      #- mongo_exporter
+    links:
+      - kafka
+   
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+    - 8083:8080
+    networks: ["sandbox"]
+
+    volumes:
+
+      - /:/rootfs:ro
+
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+
+      - /sys:/sys:ro
+
+      - /var/lib/docker:/var/lib/docker:ro
+
+    privileged: true
+    
+
+
+ # mongo_exporter:
+   # restart: 'always'
+   # ports:
+   # - '9002:9001'
+   # image: gpuliyar/mongo-exporter
+   # container_name: mongo-exporter-container
+   # environment:
+   # - 'MONGO_SERVICE=mongodb-service'
+   # - 'MONGO_PORT=27017'
+   # depends_on:
+   # - mongo
+   # networks: ["sandbox"]
+    
+     
+
+  #Services to monitor
+
+  # Route Calculator
+  route_calculator:
+    image: ghcr.io/jandion/logisticdeliversimulator/route_calculator:latest
+    ports:
+      - "7501:7501"
+    networks: ["sandbox"]
+
+
+  # OSRM
+  osrm:
+    image: ghcr.io/jandion/logisticdeliversimulator/osrm:latest 
+    ports:
+      - "5000:5000"
+    networks: ["sandbox"]
+
+
+
+    # Kafka
+  kafka:
+    build:
+      context: .
+      dockerfile: Dockerfile1
+    links:
+     - zookeeper
+    container_name: kafka-container
+    ports:
+      - "9092:9092"
+      - "9991:9991"
+      - "7071:7071"
+      - "8778:8778"
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_BROKER_ID: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      JMX_PORT: 9991
+      KAFKA_OPTS: "-javaagent:/usr/local/bin/jmx_prometheus_javaagent-0.9.jar=7071:/etc/jmx-exporter/kafka-2_0_0.yml"   #:/usr/app/jolokia-jvm.jar=port=8778,host=0.0.0.0" #jolokiaagent
+   
+    volumes:
+      - ./jmx-exporter/kafka-2_0_0.yml:/etc/jmx-exporter/kafka-2_0_0.yml
+      - ./jmx-exporter/jmx_prometheus_javaagent-0.9.jar:/usr/local/bin/jmx_prometheus_javaagent-0.9.jar
+      - ./volume/kafka/:/var/run/docker.sock
+
+    networks: ["sandbox"]
+    
+   
+
+
+  # Zookeeper
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+    networks: ["sandbox"]
+    
+
+
+  # Kafka UI
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks: ["sandbox"]
+    
+
+
+
+  # MongoDB
+  mongo:
+    image: mongo
+    restart: always
+    ports:
+      - "27017:27017"
+
+    networks: ["sandbox"]
+    
+     
+       
+      
+
+  # MongoDB Express
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://host.docker.internal:27017/
+    networks: ["sandbox"]
+   
+
+
+  # Simulator
+
+  simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile2
+    container_name: simulator
+    ports:
+      - "7500:7500"
+      - "9001:9001"
+    networks: ["sandbox"]  
+  
+
+  # Plan Selector UI
+  planSelectorUi:
+    image: ghcr.io/jandion/logisticdeliversimulator/planselectorui:latest 
+    ports:
+      - "5003:5003"
+    networks: ["sandbox"]
+
+
+networks: 
+   sandbox:
+     driver: bridge
+ 
+ 
+  
+  

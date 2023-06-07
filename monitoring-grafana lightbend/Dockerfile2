@@ -1,0 +1,18 @@
+# Use a base image with the Java runtime
+FROM openjdk:17-alpine
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the JAR file to the working directory
+COPY target/scala-2.13/LogisticDeliverSimulator.jar /app
+
+# Copy the Cinnamon agent JAR to the working directory
+COPY ./cinnamon-agent.jar /app
+
+# Expose port 7500 and 9001 of lightened metrics
+EXPOSE 7500 9001
+
+# Start the server
+CMD ["java", "-javaagent:cinnamon-agent.jar", "-jar", "LogisticDeliverSimulator.jar"]
+
